@@ -43,21 +43,26 @@ def value_iteration(mdp, gamma, theta = 1e-3):
     #V[s] = max([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in range(2)) for a in mdp.actions(s)])
 
     i = 0
+    error = 0
     while True:
         i += 1
         print("Iteration", i)
         delta = 0
+        V_prev = np.copy(V)
         for s in mdp.states():
             v = V[s]
-            if len(mdp.actions(s)) == 0:
+            if len(mdp.actions(s)) == 0: # terminal state
                 V[s] = mdp.reward(s)
             else:
-                V[s] = max([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])
+                V[s] = max([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])
+                error = max(error, abs(V[s] - V_prev[s])) # for task 2d)
             delta = max(delta, abs(v - V[s]))
+
 
         if delta < theta:
             break
 
+    print("Biggest error:", error) # used for task 2d)
     return V
 
 def policy(mdp, V):
@@ -75,9 +80,9 @@ def policy(mdp, V):
     
     A = ["U", "D", "L", "R"]
     for s in mdp.states():
-        if len(mdp.actions(s)) == 0:
+        if len(mdp.actions(s)) == 0: # terminal state
             continue
-        PI[s] = A[np.argmax([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])]
+        PI[s] = A[np.argmax([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])]
 
     return PI
 
@@ -101,19 +106,25 @@ def policy_evaluation(mdp, gamma, PI, V, theta = 1e-3):
           since the reward R(s', s, a) is only dependant on the current state s, giving the 
           simplified reward R(s) 
     """
-    #V = np.zeros((len(mdp.states())))
-
+    #V = np.zeros((len(mdp.states()))) # better to use the previous estimate
+    error = 0
     while True:
         delta = 0
+        V_prev = np.copy(V)
         for s in mdp.states():
             v = V[s]
-            V[s] = sum(mdp.transition_probability(s, PI[s], s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in mdp.states())
+            if len(mdp.actions(s)) == 0: # terminal state
+                V[s] = mdp.reward(s)
+            else:
+                V[s] = sum(mdp.transition_probability(s, PI[s], s_next) * (mdp.reward(s) + gamma * V[s_next]) for s_next in mdp.states())
+                error = max(error, abs(V[s] - V_prev[s])) # used for task 2d)
+
             delta = max(delta, abs(v - V[s]))
 
         if delta < theta:
             break
 
-    return V
+    return V, error # error used for task 2d)
 
 def policy_iteration(mdp, gamma):
     # Make a valuefunction, initialized to 0
@@ -133,21 +144,26 @@ def policy_iteration(mdp, gamma):
     Some useful tips:
         - Use the the policy_evaluation function from the preveous subproblem
     """
+
     A = ["U", "D", "L", "R"]
     i = 0
+    error = 0 # for task 2d)
     while True:
         i += 1
         print("Iteration", i)
         PI_old = np.copy(PI)
-        V = policy_evaluation(mdp, gamma, PI, V)
+        V, e = policy_evaluation(mdp, gamma, PI, V) # e used for task 2d)
+        error = max(error, e) # used for task 2d)
+
         for s in mdp.states():
             if len(mdp.actions(s)) == 0:
                 continue
-            PI[s] = A[np.argmax([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])]
+            PI[s] = A[np.argmax([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s) + gamma * V[s_next]) for s_next in mdp.states()) for a in mdp.actions(s)])]
 
         if np.array_equal(PI_old, PI):
             break
-            
+    
+    print("Biggest error:", error)
     return PI, V
 
 if __name__ == "__main__":
@@ -161,8 +177,8 @@ if __name__ == "__main__":
         - gridworlds/tiny.json
         - gridworlds/large.json
     """
-    gamma   = 1.0
-    filname = "gridworlds/large.json"
+    gamma   = 0.9
+    filname = "gridworlds/tiny.json"
 
 
     # Import the environment from file
@@ -171,6 +187,7 @@ if __name__ == "__main__":
     # Render image
     fig = env.render(show_state = False)
     plt.show()
+    
     
     print("Runs value iteration")
     # Run Value Iteration and render value function and policy
@@ -186,3 +203,4 @@ if __name__ == "__main__":
     PI, V = policy_iteration(mdp = env, gamma = gamma)
     show_value_function(env, V)
     show_policy(env, PI)
+    

@@ -40,10 +40,7 @@ def value_iteration(mdp, gamma, theta = 1e-3):
         - mdp.reward(state) returns the reward of the state R(s)
     """
 
-    #V[s] = max([sum(mdp.transition_probability(s, a, s_next) * (mdp.reward(s_next) + gamma * V[s_next]) for s_next in range(2)) for a in mdp.actions(s)])
-
-    i = 0
-    error = 0
+    i, error = 0, 0 # error used for task 2d)
     while True:
         i += 1
         print("Iteration", i)
